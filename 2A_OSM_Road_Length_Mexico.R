@@ -1,7 +1,7 @@
 ##Author: Allison James
 ##Contrib: Zach Popp
 ##Date Created: 09/03/2024
-##Date Modified: 09/10/2024
+##Date Modified: 09/16/2024
 ##Overview: The goal is this script is to process roads data from OpenStreetMap
 ##          to an administrative area level road length measure by road class.
 ##          This tutorial can be used for any spatial resolution, but this
@@ -19,19 +19,17 @@
 ##          Process GADM data for a particular country and subset it for a
 ##          particular administrative area.
 
-
 # Reading in packages
+#
 library(tidyverse)
 library(sf)
 library(data.table)
 
 # Set directories where you want to input and output data
-gadm_dir <- "/projectnb/gislane/allison/Mexico/GDAM/"
-# directory where your administrative boundaries data is stored
-roads_indir <- "/projectnb/gislane/allison/Mexico/mexico-latest-free/"
-# directory where your roads data is stored
-roads_outdir <- "/projectnb/gislane/allison/Mexico/roads_out/"
-# directory where you want to output your data after aggregation
+#
+gadm_dir <- "YOUR PATH FOR ADMINISTRATIVE BOUNDARY DATA"
+roads_indir <- "YOUR PATH FOR ROADS DATA"
+roads_outdir <- "YOUR PATH FOR OUTPUT ROADS"
 
 # The following variables come from the command line when running as bash. Bash
 # scripting is a method for expediting processing using a computing cluster.
@@ -45,38 +43,48 @@ roads_outdir <- "/projectnb/gislane/allison/Mexico/roads_out/"
 # such as the example line below.
 #
 args <- commandArgs(trailingOnly = TRUE)
-GID <- as.numeric(args[1]) # ID of the area
+index <- as.numeric(args[1]) # index from 1 to length of unique geographies
 # Note: Make sure you use a numeric identifier
 
-# If you are not using a bash script than you can use the line below.
-#GID <- "MEX_1_1" # Example here for Aguascalientes state Geo ID code
-
 # %%%%%%%%%%%%%%%%%%%% READ IN GADM DATA %%%%%%%%%%%%%%%%%%%%%%% #
-# Read in cleaned data from Step 1.
-# This data should have a NUMERIC column for the GID of interest.
+# Read in administrative boundary data
 #
-filename_gadm <- "gadm_clean.gpkg" # Replace with the name of your GADM file
-gadm_poly <- st_read(paste0(gadm_dir, filename_gadm))
+filename_gadm <- "gadm41_MEX_2.shp" # Replace with the name of your GADM file
+gadm_poly <- st_read(paste0(gadm_dir, "/", filename_gadm))
 
 # Replace periods in the ID column with underscores
+#
 gadm_poly$GID_1 <- gsub("\\.", "_", gadm_poly$GID_1)
 gadm_poly$GID_2 <- gsub("\\.", "_", gadm_poly$GID_2)
+
+# If you are not using a bash script than you can use the code below to subset
+# your GADM file as needed, OR set gadm_state to be your full gadm file. Note
+# that processing large areas with many roads will be computationally 
+# intensive. If not using batch scripting, set your gadm_state file and then
+# skip to the READ IN OPENSTREETMAP DATA section
+#
+# gadm_state <- gadm_poly[gadm_poly$GID_1 == "STATE OF INTEREST", ]
+# gadm_state <- gadm_poly[gadm_poly$GID_1 == "MEX_1_1", ] # Example here for Aguascalientes state Geo ID code
+#
+
+# List all unique geographic identifiers. We want to isolate the file by a 
+# region larger than the administrative boundary to which we will aggregate,
+# as this will allow us to subset the processing
+#
+GID_1_list <- unique(gadm_poly$GID_1)     #integer; does not contain leading zeroes
+
+# Use index input to subset to single "state" or "district" for reduction
+# of processing time
+#
+GID_in <- GID_1_list[index]
 
 # Select the data for the chosen state. 
 # Make sure the subsequent number for the GID column name matches the level
 # at which you are doing your analysis. In this example, analysis is done
 # for each municipality (Level 2) in a particular state (Level 1), so the chosen
-# column is GID_1_num rather than GID_2_num (municipality) or GID_0 (country).
+# column is GID_1 rather than GID_2 (municipality) or GID_0 (country).
 # 
-gadm_state <- gadm_poly %>% filter(
-  GID_1_num == GID
-)
-
-# If you are not bash scripting, there is no need to subset by the numeric
-# column. You can uncomment and use the code below instead:
-# gadm_state <- gadm_poly %>% filter(
-#   GID_1 == GID
-# )
+gadm_state <- gadm_poly[gadm_poly$GID_1 == GID_in, ]
 
 # %%%%%%%%%%%%%%%%%%%% READ IN OPENSTREETMAP DATA %%%%%%%%%%%%%%%%%%%%%%% #
 # Read in OSM roads
@@ -84,8 +92,7 @@ gadm_state <- gadm_poly %>% filter(
 # There may be millions of observations, depending on the size of the region.
 #
 filename_osm <- "gis_osm_roads_free_1.shp" # Replace with your file's name
-osm_roads <- st_read(paste0(roads_indir, filename_osm))
-
+osm_roads <- st_read(paste0(roads_indir, "/", filename_osm))
 
 # The process below is conducted to determine the appropriate projected coordinate
 # system for both the roads and census tract data. Projected coordinate systems
@@ -134,18 +141,24 @@ gadm_state <- gadm_state[c("GID_1", "GID_2", "geometry")]
 osm_roads <- osm_roads[c("fclass", "geometry")]
 
 # Apply the intersection between each municipality (level 2) and road
+# To speed up processing, we can turn off spherical geometry. This will
+# affect the precision of the spatial intersection, but we can expect the 
+# changes to be relatively minimal in comparing sum road length across 
+# districts
 #
+sf_use_s2(FALSE)
 gadm_level2_full_osm <- st_intersection(gadm_state, osm_roads)
-
 
 # The intersection results in points being generated at intersection, which is not
 # relevant for length calculations. The code below will remove the point data
 #
-# gadm_tract_full_osm_nopt <- gadm_tract_full_osm[st_geometry_type(gadm_tract_full_osm$geometry) %in% c("LINESTRING", "MULTILINESTRING"),]
+# ZP: Does this need to be commented out? Or should it remain for length calculation
+#
+# gadm_level2_full_osm_nopt <- gadm_level2_full_osm[st_geometry_type(gadm_level2_full_osm$geometry) %in% c("LINESTRING", "MULTILINESTRING"),]
 
 # Calculate length for  after cropping to polygon fit
 #
-gadm_level2_full_osm$len_m <- st_length(gadm_tract_full_osm$geometry) 
+gadm_level2_full_osm$len_m <- st_length(gadm_level2_full_osm$geometry) 
 
 # Set as data.table
 #
@@ -156,6 +169,10 @@ gadm_level2_full_osm_dt <- setDT(gadm_level2_full_osm)
 gadm_level2_sum <- gadm_level2_full_osm[, .(length = (sum(len_m))), 
                                         by=.(GID_2, fclass)]
 
+#*******************************************************************************
+#**************** ADD REFERENCE FOR ROAD CLASSES/OSM DATA DICTIONARY ***********
+#*******************************************************************************
+#*******************************************************************************
 # Estimate of total length by class
 #
 rd_gadm_primary <- gadm_level2_sum[fclass %in% c("primary", "primary_link", 
@@ -191,28 +208,44 @@ level1_rd_length <- left_join(level1_rd_length, gadm_tract_total, by = "GID_2")
 
 # Save joined dataset
 #
-saveRDS(level1_rd_length, paste0(roads_outdir, "osm_road_len_by_fclass_",
-                                 GID, ".rds"))
+saveRDS(level1_rd_length, paste0(roads_outdir, "/", "osm_road_len_by_fclass_",
+                                 GID_in, ".rds"))
 
 # %%%%%%%%%%%%%%%%%% CALCULATE NUMBER OF INTERSECTIONS %%%%%%%%%%%%%%%%%%%%%%% #
 
 # Apply intersection to road segments
-road_intersections <- st_intersection(st_as_sf(gadm_tract_full_osm))
+# ZP: Add description clarifying how this intersection differs from the one that
+# is run between the admin boundaries and roads.
+#
+road_intersections <- st_intersection(st_as_sf(gadm_level2_full_osm))
 
 # Filter out road segments that overlap and only keep points, which are 
 # road intersections.
+#
 road_intersections <- road_intersections %>% 
   filter(st_geometry_type(.) == "POINT")
 
 # Join the intersections back with the GID_2 roads
+# ZP: Updated gadm_tract_full_osm to gadm_level2_full_osm. Not sure this is correct
+# as it seems to create a GID_1 and GID_2 column. Also, would be good to clarify
+# what is going on with this merge. Do the road intersections need to be spatially
+# joined back to roads, and are they double counted since they inherently are touching
+# two roads? Could they just be summed at the GID_2 level?
+#
 road_intersections_with_gid2 <- st_join(road_intersections, 
-                                        st_as_sf(gadm_tract_full_osm))
+                                        st_as_sf(gadm_level2_full_osm))
 
 # Identify observations with NA value for GID_2
+# ZP: I am seeing a GID_2.x and GID.y with this. I tested with GID2.y meaning 
+# that they were missing the joined gadm_level2_full_osm GID_2. There is 
+# 871 obs, would be good to clarify why these are missing?
+#
 na_gid2 <- road_intersections_with_gid2 %>% 
-  filter(is.na(GID_2))
+  filter(is.na(GID_2.y))
 
-# Assign these observations to the nearest GID_2 polygon
+# Assign these observations to the nearest GID_2 polygon. 
+# ZP: Can you add comments describing why these are joined in this way?
+#
 nearest_gid2 <- st_nearest_feature(na_gid2, 
                                    st_as_sf(gadm_tract_full_osm))
 nearest_gid2_values <- gadm_tract_full_osm$GID_2[nearest_gid2]
@@ -220,11 +253,12 @@ nearest_gid2_values <- gadm_tract_full_osm$GID_2[nearest_gid2]
 road_intersections_with_gid2$GID_2[is.na(road_intersections_with_gid2$GID_2)] <- nearest_gid2_values
 
 # Count the number of intersections in each GID_2
+#
 intersection_count <- road_intersections_with_gid2 %>%
   group_by(GID_2) %>%
   summarise(num_intersections = n())
 
 # Save points
 #
-saveRDS(intersection_count, paste0(roads_outdir, "osm_intersections_",
+saveRDS(intersection_count, paste0(roads_outdir, "/", "osm_intersections_",
                                  GID, ".rds"))
