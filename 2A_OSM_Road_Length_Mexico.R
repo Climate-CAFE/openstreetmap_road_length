@@ -1,7 +1,7 @@
 ##Author: Allison James
 ##Contrib: Zach Popp
 ##Date Created: 09/03/2024
-##Date Modified: 09/16/2024
+##Date Modified: 09/24/2024
 ##Overview: The goal is this script is to process roads data from OpenStreetMap
 ##          to an administrative area level road length measure by road class.
 ##          This tutorial can be used for any spatial resolution, but this
@@ -234,23 +234,6 @@ road_intersections <- road_intersections %>%
 #
 road_intersections_with_gid2 <- st_join(road_intersections, 
                                         st_as_sf(gadm_level2_full_osm))
-
-# Identify observations with NA value for GID_2
-# ZP: I am seeing a GID_2.x and GID.y with this. I tested with GID2.y meaning 
-# that they were missing the joined gadm_level2_full_osm GID_2. There is 
-# 871 obs, would be good to clarify why these are missing?
-#
-na_gid2 <- road_intersections_with_gid2 %>% 
-  filter(is.na(GID_2.y))
-
-# Assign these observations to the nearest GID_2 polygon. 
-# ZP: Can you add comments describing why these are joined in this way?
-#
-nearest_gid2 <- st_nearest_feature(na_gid2, 
-                                   st_as_sf(gadm_tract_full_osm))
-nearest_gid2_values <- gadm_tract_full_osm$GID_2[nearest_gid2]
-
-road_intersections_with_gid2$GID_2[is.na(road_intersections_with_gid2$GID_2)] <- nearest_gid2_values
 
 # Count the number of intersections in each GID_2
 #
