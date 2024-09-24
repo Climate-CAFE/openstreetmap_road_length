@@ -89,7 +89,6 @@ GID_in <- GID_1_list[index]
 # 
 gadm_state <- gadm_poly[gadm_poly$GID_1 == GID_in, ]
 
-
 # %%%%%%%%%%%%%%%%%%%% READ IN OPENSTREETMAP DATA %%%%%%%%%%%%%%%%%%%%%%% #
 # Read in OSM roads
 # The file may take a minute or two to load, as it's a big file.
@@ -141,7 +140,7 @@ osm_roads <- st_transform(osm_roads, epsg_code)
 
 # Subset column names
 #
-gadm_state <- gadm_state[c("GID_1", "GID_2", "geom")] # or "geography"
+gadm_state <- gadm_state[c("GID_1", "GID_2", "geom")] # or "geometry"
 osm_roads <- osm_roads[c("fclass", "geometry")]
 
 # Apply the intersection between each municipality (level 2) and road
@@ -152,11 +151,6 @@ osm_roads <- osm_roads[c("fclass", "geometry")]
 #
 sf_use_s2(FALSE)
 gadm_level2_full_osm <- st_intersection(gadm_state, osm_roads)
-
-# The intersection results in points being generated at intersection, which is not
-# relevant for length calculations. The code below will remove the point data
-#
-# gadm_tract_full_osm_nopt <- gadm_tract_full_osm[st_geometry_type(gadm_tract_full_osm$geometry) %in% c("LINESTRING", "MULTILINESTRING"),]
 
 # Calculate length for  after cropping to polygon fit
 #
@@ -210,25 +204,29 @@ level1_rd_length <- left_join(level1_rd_length, gadm_tract_total, by = "GID_2")
 
 # Save joined dataset
 #
-saveRDS(level1_rd_length, paste0(roads_outdir, "osm_road_len_by_fclass_",
-                                 GID, ".rds"))
+saveRDS(level1_rd_length, paste0(roads_outdir, "/", "osm_road_len_by_fclass_",
+                                 GID_in, ".rds"))
 
 # %%%%%%%%%%%%%%%%%% CALCULATE NUMBER OF INTERSECTIONS %%%%%%%%%%%%%%%%%%%%%%% #
 
-# Apply intersection to road segments
+# Apply intersection to road segments. This creates points and line segments
+# for every instance of the roads intersecting or overlapping with each other.
+#
 road_intersections <- st_intersection(st_as_sf(gadm_level2_full_osm))
 
 # Filter out road segments that overlap and only keep points, which are 
 # road intersections.
+#
 road_intersections <- road_intersections %>% 
   filter(st_geometry_type(.) == "POINT")
 
 # Count the number of intersections in each GID_2
+#
 intersection_count <- road_intersections %>%
   group_by(GID_2) %>%
   summarise(num_intersections = n())
 
 # Save points
 #
-saveRDS(intersection_count, paste0(roads_outdir, "osm_intersections_",
+saveRDS(intersection_count, paste0(roads_outdir, "/", "osm_intersections_",
                                    GID, ".rds"))
