@@ -204,23 +204,6 @@ road_intersections <- st_intersection(st_as_sf(gadm_level2_full_osm))
 road_intersections <- road_intersections %>% 
   filter(st_geometry_type(.) == "POINT")
 
-# # Join the intersections back with the GID_2 roads
-# road_intersections_with_gid2 <- st_join(road_intersections, 
-#                                         st_as_sf(gadm_level2_full_osm))
-
-# Identify observations with NA value for GID_2, if they exist
-# na_gid2 <- road_intersections %>% 
-#   filter(is.na(GID_2))
-# 
-# # Assign these observations to the nearest GID_2 polygon
-# nearest_gid2 <- st_nearest_feature(na_gid2, 
-#                                    st_as_sf(gadm_level2_full_osm))
-# nearest_gid2_values <- gadm_level2_full_osm$GID_2[nearest_gid2]
-# 
-# road_intersections$GID_2[is.na(road_intersections$GID_2)] <- nearest_gid2_values
-
-
-
 # Count the number of intersections in each GID_2
 intersection_count <- road_intersections %>%
   group_by(GID_2) %>%
