@@ -21,12 +21,14 @@
 
 
 # Reading in packages
+#
 library(tidyverse)
 library(sf)
 library(data.table)
 
 # Set directories where you want to input and output data
-gadm_dir <- "/projectnb/gislane/allison/Mexico/GDAM/"
+#
+gadm_dir <- "YOUR LOCAL PATH"
 
 # %%%%%%%%%%%%%%%%%%%% READ IN GADM DATA %%%%%%%%%%%%%%%%%%%%%%% #
 # Read in data for GADM Level 2.
@@ -39,7 +41,7 @@ gadm_dir <- "/projectnb/gislane/allison/Mexico/GDAM/"
 # The USA has counties rather than municipalities, for example.
 #
 filename <- "gadm41_MEX_2.shp" # Replace with the name of your GADM file
-gadm_raw_data <- st_read(paste0(gadm_dir, filename))
+gadm_raw_data <- st_read(paste0(gadm_dir, "/", filename))
 
 # Replace periods in the ID column with underscores
 #
@@ -58,6 +60,7 @@ gadm_cleaned_data <- gadm_raw_data[,c("GID_0", "GID_1", "GID_1_num",  "GID_2",
                                       "ENGTYPE_2")]
 
 # Save the updated data.
-# Note: make sure it's in a spatial data format (.shp, .gpkg)
-st_write(gadm_cleaned_data, paste0(gadm_dir, "gadm_clean.gpkg"))
+# Note: make sure it's in a spatial data format (.shp, .gpkg, .rds)
+#
+st_write(gadm_cleaned_data, paste0(gadm_dir, "/", "gadm_clean.gpkg"))
 

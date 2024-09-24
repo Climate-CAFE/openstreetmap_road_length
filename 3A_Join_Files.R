@@ -7,6 +7,7 @@
 ##          This tutorial can be used for any spatial resolution, but this
 ##          example calculates road length measures at the municipality level
 ##          for each state in Mexico.
+##
 ##          This script uses OpenStreetMap data downloaded locally from 
 ##          Geofabrik in a shapefile format and uses GADM data for the 
 ##          administrative areas, which is downloaded for the whole country.
@@ -18,14 +19,19 @@
 ##Purpose: 
 ##          Join the road lengths and intersections for each state together
 ##          to create a final, country-wide file.
+##Note: 
+##          This script is relevant only if roads were processed using a .sh
+##          script or for loop to divide the computation for different states.
+##          If all states and roads were processed in one step, this code does
+##          not need to be run.
 
 
 # Reading in packages
 library(tidyverse)
 library(sf)
 
-roads_state_dir <- "" # This is where each state-wide file is kept.
-roads_country_dir <- "" # This is where you would like your final output file to go.
+roads_state_dir <- "YOUR PATH FOR STATE-WIDE FILES" 
+roads_country_dir <- "YOUR PATH FOR FINAL OUTPUT" 
 
 # %%%%%%%%%%%%%%%%%%%% JOIN ROAD LENGTHS %%%%%%%%%%%%%%%%%%%%%%% #
 
