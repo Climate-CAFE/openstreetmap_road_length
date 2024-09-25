@@ -9,7 +9,7 @@ Rscript 1A_OSM_Road_Length.R $SGE_TASK_ID
 
 ## In Terminal, cd to the directory in which this bash script is located. 
 ## Run the following line:
-## qsub -P (project name) -t 1-(# of total states) 1A_OSM_Road_Length_Mexico.R
+## qsub -P (project name) -t 1-(# of total states) 1B_OSM_Road_Length.R
 ##
 ## This bash script will run as an array with an index for every state. The index will be
 ## read in by the R script 2 to identify the state to process. By processing only by state,

@@ -16,8 +16,9 @@
 ##          in each administrative area are also calculated.
 ##
 ##Purpose: 
-##          Process GADM data for a particular country and subset it for a
-##          particular administrative area.
+##          Process GADM and OSM data for a particular country and subset it by
+##          administrative area, then calculate road length by type and number 
+##          of intersections per administrative area.
 
 # Reading in packages
 #
@@ -140,7 +141,7 @@ osm_roads <- st_transform(osm_roads, epsg_code)
 
 # Subset column names
 #
-gadm_state <- gadm_state[c("GID_1", "GID_2", "geom")] # or "geometry"
+gadm_state <- gadm_state[c("GID_1", "GID_2", "geometry")] # or "geom"
 osm_roads <- osm_roads[c("fclass", "geometry")]
 
 # Apply the intersection between each municipality (level 2) and road
@@ -154,7 +155,7 @@ gadm_level2_full_osm <- st_intersection(gadm_state, osm_roads)
 
 # Calculate length for  after cropping to polygon fit
 #
-gadm_level2_full_osm$len_m <- st_length(gadm_level2_full_osm$geom)
+gadm_level2_full_osm$len_m <- st_length(gadm_level2_full_osm$geometry)
 
 # Set as data.table
 #
@@ -229,4 +230,4 @@ intersection_count <- road_intersections %>%
 # Save points
 #
 saveRDS(intersection_count, paste0(roads_outdir, "/", "osm_intersections_",
-                                   GID, ".rds"))
+                                   GID_in, ".rds"))
