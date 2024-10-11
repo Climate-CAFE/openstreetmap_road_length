@@ -210,22 +210,69 @@ saveRDS(level1_rd_length, paste0(roads_outdir, "/", "osm_road_len_by_fclass_",
 
 # %%%%%%%%%%%%%%%%%% CALCULATE NUMBER OF INTERSECTIONS %%%%%%%%%%%%%%%%%%%%%%% #
 
-# Apply intersection to road segments. This creates points and line segments
-# for every instance of the roads intersecting or overlapping with each other.
+# Create matrix of intersecting road segments (list of intersections for each road)
 #
-road_intersections <- st_intersection(st_as_sf(gadm_level2_full_osm))
+road_intersections <- st_intersects(st_as_sf(gadm_level2_full_osm))
 
-# Filter out road segments that overlap and only keep points, which are 
-# road intersections.
+# Put road segment pairs into a data frame. 
+# For each road, we create an observation for all of its intersections.
 #
-road_intersections <- road_intersections %>% 
-  filter(st_geometry_type(.) == "POINT")
+road_pairs <- do.call(rbind, lapply(seq_along(road_intersections), function(i) {
+  if (length(road_intersections[[i]]) > 1) {  # Only consider roads with intersections
+    data.frame(road1 = i, road2 = road_intersections[[i]])
+  } else {
+    NULL  # Skip if no intersections
+  }
+}))
 
-# Count the number of intersections in each GID_2
+# Exclude intersections betwen segments of the same road
 #
-intersection_count <- road_intersections %>%
-  group_by(GID_2) %>%
-  summarise(num_intersections = n())
+road_pairs <- road_pairs[road_pairs$road1 != road_pairs$road2, ]
+
+# Join the intersections with their corresponding municipality information
+#
+osm_roads_with_gid <- gadm_level2_full_osm %>%
+  select(fclass, GID_2, geometry) %>% 
+  mutate(row_id = row_number())
+
+road_pairs <- road_pairs %>%
+  left_join(osm_roads_with_gid, by = c("road1" = "row_id")) %>%
+  left_join(osm_roads_with_gid, by = c("road2" = "row_id"))
+
+# Arrange the intersections in ascending order
+# (All of road 1's intersections, then road 2's, etc.)
+#
+road_pairs <- road_pairs %>%
+  mutate(
+    road1_new = pmin(road1, road2),
+    road2_new = pmax(road1, road2)
+  ) %>%
+  select(-road1, -road2) %>%
+  rename(road1 = road1_new, road2 = road2_new)
+
+# Remove any duplicates
+#
+road_pairs_distinct <- road_pairs %>%
+  distinct(road1, road2, .keep_all = TRUE)
+
+# Filter out intersections that span different municipalities.
+# Since we are counting intersections by municipality, we don't want to include
+# intersections that cross borders as that increases the possibility of 
+# overcounting.
+#
+road_pairs_in_same_gid <- road_pairs_distinct %>%
+  filter(GID_2.x == GID_2.y)
+
+# Count the number of unique intersections for each municipality
+#
+intersection_count <- road_pairs_in_same_gid %>%
+  group_by(GID_2.x) %>%
+  summarise(num_intersections = n_distinct(road1, road2))
+
+# Rename GID column for clarity
+#
+intersection_count <- intersection_count %>%
+  rename(GID_2 = GID_2.x)
 
 # Save points
 #

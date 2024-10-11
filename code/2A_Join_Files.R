@@ -98,10 +98,6 @@ for (i in 1:length(int_files)) {
   #
   input <- readRDS(int_files[i])
   
-  # We will also convert these to WGS 84 for the same reason as the roads
-  #
-  input <- st_transform(input, 4326)
-  
   if (i == 1) { final_int <- input; next }
   
   # Bind each new municipality to a nationwide dataset
@@ -121,13 +117,9 @@ final_int$num_intersections <- ifelse(is.na(final_int$num_intersections), 0,
 
 # %%%%%%%%%%%%%%%%%%% COMBINE ROADS AND INTERSECTIONS %%%%%%%%%%%%%%%%%%%%%%% #
 
-# Note: since both the road and intersections contain spatial data, the spatial
-# data must be dropped from one of the files. I will drop the intersection points,
-# since the roads file contains the municipality outlines.
-final_int_no_geom <- st_drop_geometry(final_int)
 
 final <- final_roads %>% 
-  left_join(final_int_no_geom) # by = "GID_2"
+  left_join(final_int) # by = "GID_2"
 
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% EXPORT DATA %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% #
@@ -145,8 +137,7 @@ st_write(final, paste0(roads_country_dir, "Nationwide_OSM_Roads_Sum_Length_GADM.
 
 # Remove geometry for tabular export
 #
-final_tab <- as.data.frame(final)
-final_tab$geom <- NULL
+final_tab <- st_drop_geometry(final)
 
 # Export csv file
 #
